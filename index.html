@@ -3,28 +3,37 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>BBA-VISIO ELITE v16</title>
+    <title>BBA-VISIO ELITE v16 - Pro</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         #main-video-container { position: absolute; inset: 0; width: 100%; height: 100%; z-index: 10; background: #000; }
-        #local-wrapper { position: absolute; bottom: 20px; right: 20px; width: 180px; height: 135px; border: 2px solid #3b82f6; border-radius: 12px; z-index: 50; overflow: hidden; box-shadow: 0 10px 30px rgba(0,0,0,0.8); }
+        
+        /* Caméra locale optimisée pour rester au-dessus des docs */
+        #local-wrapper { 
+            position: absolute; bottom: 20px; right: 20px; 
+            width: 180px; height: 135px; 
+            border: 2px solid #3b82f6; border-radius: 12px; 
+            z-index: 100; overflow: hidden; 
+            box-shadow: 0 10px 30px rgba(0,0,0,0.8); 
+            background: #000;
+        }
         
         .student-window { 
             position: absolute; width: 280px; height: 210px; 
             background: #111; border: 2px solid #f59e0b; 
-            border-radius: 12px; z-index: 100; overflow: hidden; 
+            border-radius: 12px; z-index: 110; overflow: hidden; 
             box-shadow: 0 20px 50px rgba(0,0,0,0.7); 
             display: flex; flex-direction: column;
-            cursor: default;
         }
         
-        /* La barre de titre devient la zone de saisie pour déplacer */
         .window-header {
             background: #ea580c; padding: 6px 12px;
             display: flex; justify-content: space-between; align-items: center;
             cursor: grab; user-select: none;
         }
-        .window-header:active { cursor: grabbing; }
+
+        .recording-active { animation: blink 1s infinite; background-color: #ef4444 !important; }
+        @keyframes blink { 50% { opacity: 0.6; } }
         
         video { width: 100%; height: 100%; object-fit: cover; pointer-events: none; }
     </style>
@@ -46,14 +55,15 @@
         </div>
 
         <div class="flex gap-3">
-            <button id="btn-hand" onclick="leverMain()" class="bg-gray-800 px-4 py-2 rounded-lg text-xs font-bold border border-gray-700">✋ LEVER LA MAIN</button>
+            <button id="btn-record" onclick="toggleRecord()" class="bg-gray-700 px-4 py-2 rounded-lg text-xs font-bold border border-gray-600 hover:bg-gray-600 transition">🔴 REC</button>
+            <button id="btn-hand" onclick="leverMain()" class="bg-gray-800 px-4 py-2 rounded-lg text-xs font-bold border border-gray-700">✋ MAIN</button>
             <button id="btn-mic" onclick="toggleMic()" class="bg-blue-600 px-4 py-2 rounded-lg text-xs font-bold">🎤 MICRO ON</button>
         </div>
     </header>
 
     <main class="flex-1 flex overflow-hidden relative">
         <section id="main-container" class="flex-1 relative bg-black">
-            <iframe id="ppt-frame" class="absolute inset-0 w-full h-full z-20 hidden bg-white"></iframe>
+            <iframe id="ppt-frame" class="absolute inset-0 w-full h-full z-20 hidden bg-white border-none"></iframe>
             <div id="main-video-container">
                 <video id="remoteVideo" autoplay playsinline></video>
                 <div id="main-label" class="absolute top-4 left-4 bg-black/70 px-4 py-1.5 rounded-full text-[10px] font-black z-30 uppercase tracking-widest border border-gray-700">Flux Principal</div>
@@ -66,7 +76,7 @@
         <aside class="w-80 bg-gray-900 border-l border-gray-800 flex flex-col shrink-0 z-50">
             <div id="admin-panel" class="hidden flex flex-col h-full">
                 <div class="p-4 border-b border-blue-500/20 bg-blue-900/10">
-                    <button onclick="document.getElementById('file-input').click()" class="w-full bg-orange-600 py-3 rounded-xl font-black text-xs uppercase shadow-lg">📊 Partager Document</button>
+                    <button onclick="document.getElementById('file-input').click()" class="w-full bg-orange-600 py-3 rounded-xl font-black text-xs uppercase shadow-lg hover:bg-orange-500 transition">📊 Partager Document</button>
                     <input type="file" id="file-input" class="hidden" accept="application/pdf" onchange="partagerFichier(this)">
                 </div>
                 <div class="p-4 overflow-y-auto flex-1">

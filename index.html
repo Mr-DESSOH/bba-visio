@@ -3,12 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>BBA-VISIO ELITE v16 - Pro</title>
+    <title>BBA-VISIO ELITE v17 - Pro</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         #main-video-container { position: absolute; inset: 0; width: 100%; height: 100%; z-index: 10; background: #000; }
-        
-        /* Caméra locale optimisée pour rester au-dessus des docs */
         #local-wrapper { 
             position: absolute; bottom: 20px; right: 20px; 
             width: 180px; height: 135px; 
@@ -17,7 +15,6 @@
             box-shadow: 0 10px 30px rgba(0,0,0,0.8); 
             background: #000;
         }
-        
         .student-window { 
             position: absolute; width: 280px; height: 210px; 
             background: #111; border: 2px solid #f59e0b; 
@@ -25,16 +22,13 @@
             box-shadow: 0 20px 50px rgba(0,0,0,0.7); 
             display: flex; flex-direction: column;
         }
-        
         .window-header {
             background: #ea580c; padding: 6px 12px;
             display: flex; justify-content: space-between; align-items: center;
             cursor: grab; user-select: none;
         }
-
         .recording-active { animation: blink 1s infinite; background-color: #ef4444 !important; }
         @keyframes blink { 50% { opacity: 0.6; } }
-        
         video { width: 100%; height: 100%; object-fit: cover; pointer-events: none; }
     </style>
 </head>
@@ -75,8 +69,9 @@
 
         <aside class="w-80 bg-gray-900 border-l border-gray-800 flex flex-col shrink-0 z-50">
             <div id="admin-panel" class="hidden flex flex-col h-full">
-                <div class="p-4 border-b border-blue-500/20 bg-blue-900/10">
+                <div class="p-4 border-b border-blue-500/20 bg-blue-900/10 space-y-2">
                     <button onclick="document.getElementById('file-input').click()" class="w-full bg-orange-600 py-3 rounded-xl font-black text-xs uppercase shadow-lg hover:bg-orange-500 transition">📊 Partager Document</button>
+                    <button onclick="fermerDocument()" class="w-full bg-red-600 py-2 rounded-xl font-black text-[10px] uppercase shadow-lg hover:bg-red-500 transition">✖ Quitter le doc</button>
                     <input type="file" id="file-input" class="hidden" accept="application/pdf" onchange="partagerFichier(this)">
                 </div>
                 <div class="p-4 overflow-y-auto flex-1">

@@ -9,14 +9,25 @@ let activeConnections = [], studentStreams = {}, connectedStudents = [];
 let windowOffset = 0, micEnabled = true, handRaised = false;
 let mediaRecorder, recordedChunks = [];
 
-// INITIALISATION
+// INITIALISATION AVEC SERVEURS STUN POUR CONNEXION DISTANTE
 async function init() {
     userName = prompt("Nom complet :") || "Étudiant";
     document.getElementById('display-name').innerText = userName;
     try {
         localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
         localVideo.srcObject = localStream;
-        peer = new Peer();
+
+        // CONFIGURATION TECHNIQUE RÉSEAU (STUN)
+        peer = new Peer({
+            config: {
+                'iceServers': [
+                    { url: 'stun:stun.l.google.com:19302' },
+                    { url: 'stun:stun1.l.google.com:19302' },
+                    { url: 'stun:stun2.l.google.com:19302' }
+                ]
+            }
+        });
+
         peer.on('open', id => document.getElementById('display-id').innerText = "ID: " + id);
         peer.on('call', call => {
             call.answer(localStream);
@@ -92,6 +103,11 @@ function setupData(conn) {
             document.getElementById('ppt-frame').src = data.url;
             document.getElementById('ppt-frame').classList.remove('hidden');
         }
+        // NOUVEAU : Réception ordre fermeture doc
+        else if (data.type === "PPT_OFF") {
+            document.getElementById('ppt-frame').classList.add('hidden');
+            document.getElementById('ppt-frame').src = "";
+        }
         else if (typeof data === "string") { addChat(data, 'dist'); }
     });
 }
@@ -102,14 +118,18 @@ function partagerFichier(input) {
         const data = { type: "PPT_ON", url: e.target.result };
         document.getElementById('ppt-frame').src = data.url;
         document.getElementById('ppt-frame').classList.remove('hidden');
-        
-        // Maintien de la caméra locale au-dessus pour le prof
         document.getElementById('local-wrapper').style.display = "block";
         document.getElementById('local-wrapper').style.zIndex = "100";
-
         activeConnections.forEach(c => { if(c.open) c.send(data); });
     };
     reader.readAsDataURL(input.files[0]);
+}
+
+// NOUVEAU : Fonction pour arrêter le partage
+function fermerDocument() {
+    document.getElementById('ppt-frame').classList.add('hidden');
+    document.getElementById('ppt-frame').src = "";
+    activeConnections.forEach(c => { if(c.open) c.send({ type: "PPT_OFF" }); });
 }
 
 function devenirProf() {
@@ -123,7 +143,7 @@ function devenirProf() {
     }
 }
 
-// -- FONCTIONS UTILITAIRES (DÉPLACER, LISTE, ETC.) --
+// -- FONCTIONS UTILITAIRES --
 function makeDraggable(el) {
     let pos1 = 0, pos2 = 0, pos3 = 0, pos4 = 0;
     const header = el.querySelector('.window-header');

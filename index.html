@@ -2,12 +2,12 @@
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>BBA-VISIO ELITE v18</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>BBA-VISIO ELITE v20</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         #main-video-container { position: absolute; inset: 0; z-index: 10; background: #000; }
-        #local-wrapper { position: absolute; bottom: 20px; right: 20px; width: 180px; height: 135px; border: 2px solid #3b82f6; border-radius: 12px; z-index: 100; overflow: hidden; background: #000;}
+        #local-wrapper { position: absolute; bottom: 20px; right: 20px; width: 150px; height: 110px; border: 2px solid #3b82f6; border-radius: 12px; z-index: 100; overflow: hidden; background: #000;}
         .recording-active { animation: blink 1s infinite; background-color: #ef4444 !important; }
         @keyframes blink { 50% { opacity: 0.6; } }
         video { width: 100%; height: 100%; object-fit: cover; }
@@ -19,13 +19,13 @@
         <div class="flex items-center gap-4">
             <h1 class="text-blue-500 font-black text-2xl italic">BBA-VISIO</h1>
             <div class="border-l border-gray-700 pl-4">
-                <span id="display-name" class="text-xs font-bold block">Utilisateur</span>
+                <span id="display-name" class="text-xs font-bold block">Chargement...</span>
                 <span id="display-id" class="text-[10px] text-blue-400 font-mono italic">Initialisation...</span>
             </div>
         </div>
         <div class="flex gap-2">
             <input type="text" id="target-id" placeholder="ID Professeur..." class="bg-gray-800 border border-gray-700 rounded-lg px-3 py-1 text-xs w-40 outline-none">
-            <button onclick="rejoindreCours()" class="bg-blue-600 px-4 py-1 rounded-lg font-bold text-xs uppercase">Rejoindre</button>
+            <button onclick="rejoindreCours()" class="bg-blue-600 px-4 py-1 rounded-lg font-bold text-xs uppercase hover:bg-blue-500 transition">Rejoindre</button>
         </div>
         <div class="flex gap-3">
             <button id="btn-record" onclick="toggleRecord()" class="bg-gray-700 px-3 py-1 rounded text-xs font-bold">🔴 REC</button>
@@ -49,10 +49,10 @@
             <div id="admin-panel" class="hidden flex flex-col h-full">
                 <div class="p-4 flex justify-between items-center bg-gray-950 border-b border-gray-800">
                     <span class="text-[10px] font-bold text-orange-500 uppercase">Gestion de Salle</span>
-                    <button id="btn-settings" onclick="modifierProfil()" class="hidden text-sm hover:scale-110 transition">⚙️</button>
+                    <button id="btn-settings" onclick="modifierProfil()" class="text-sm hover:scale-110 transition">⚙️</button>
                 </div>
                 <div class="p-4 bg-blue-900/10 space-y-2 border-b border-blue-500/20">
-                    <button onclick="document.getElementById('file-input').click()" class="w-full bg-orange-600 py-3 rounded-xl font-bold text-xs uppercase">📊 Partager Document</button>
+                    <button onclick="document.getElementById('file-input').click()" class="w-full bg-orange-600 py-3 rounded-xl font-bold text-xs uppercase hover:bg-orange-500">📊 Partager Document</button>
                     <button onclick="fermerDocument()" class="w-full bg-red-600 py-2 rounded-xl font-bold text-[10px] uppercase">✖ Fermer le doc</button>
                     <input type="file" id="file-input" class="hidden" accept="application/pdf" onchange="partagerFichier(this)">
                 </div>
@@ -70,13 +70,9 @@
     </main>
 
     <footer class="h-8 bg-gray-950 flex items-center justify-center border-t border-gray-900">
-        <button onclick="devenirProf()" class="text-[9px] text-gray-600 hover:text-blue-500 uppercase font-bold tracking-tighter">Portail Professeur</button>
+        <button onclick="devenirProf()" class="text-[9px] text-gray-600 hover:text-blue-500 uppercase font-bold tracking-tighter transition">Accès Portail Professeur</button>
     </footer>
-<div id="transcription-zone" class="absolute bottom-24 left-1/2 -translate-x-1/2 w-3/4 bg-black/60 backdrop-blur-md p-3 rounded-lg border border-white/10 text-center z-40 hidden">
-    <p id="transcript-text" class="text-sm font-medium text-gray-200 italic">En attente de parole...</p>
-</div>
 
-<button id="btn-transcribe" onclick="toggleTranscription()" class="bg-purple-600 px-3 py-1 rounded text-xs font-bold hover:bg-purple-500 transition">🎙️ TRANSCRIPTION</button>
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
     <script src="index.js"></script>
 </body>

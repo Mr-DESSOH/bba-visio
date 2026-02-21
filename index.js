@@ -11,16 +11,29 @@ let mediaRecorder, recordedChunks = [];
 
 // SERVEURS DE CONNEXION (STUN/TURN) - Crucial pour 4G et Wi-Fi différents
 const peerConfig = {
+const peerConfig = {
+    // Force la connexion via des serveurs relais si le direct échoue
     config: {
         'iceServers': [
             { urls: 'stun:stun.l.google.com:19302' },
             { urls: 'stun:stun1.l.google.com:19302' },
             { urls: 'stun:stun2.l.google.com:19302' },
+            { urls: 'stun:stun3.l.google.com:19302' },
+            { urls: 'stun:stun4.l.google.com:19302' },
+            // Serveurs STUN additionnels pour traverser les NAT stricts
             { urls: 'stun:stun.services.mozilla.com' },
-            { urls: 'stun:openrelay.metered.ca:80' }
+            { urls: 'stun:stun.ekiga.net' },
+            { urls: 'stun:stun.ideasip.com' },
+            { urls: 'stun:stun.schlund.de' }
         ],
-        'iceCandidatePoolSize': 10
-    }
+        'iceCandidatePoolSize': 10,
+        'sdpSemantics': 'unified-plan'
+    },
+    // Configuration du serveur de signalement PeerJS
+    host: '0.peerjs.com',
+    secure: true,
+    port: 443,
+    debug: 1 // Garde 1 pour voir les erreurs critiques uniquement
 };
 
 let LISTE_PROFS = JSON.parse(localStorage.getItem('bba_profs')) || {
@@ -51,14 +64,92 @@ async function init() {
         });
 
         // Gestion des appels (vidéo entrante)
-        peer.on('call', call => {
-            call.answer(localStream);
-            call.on('stream', stream => {
-                // On affiche la vidéo du prof si on est étudiant
-                if (!isProfessor) remoteVideo.srcObject = stream;
-            });
+// Remplace ton peer.on('call') par cette version robuste
+function setupPeerListeners() {
+    peer.on('call', call => {
+        console.log("Tentative de poignée de main WebRTC...");
+        
+        // Option pro : On peut ajouter des contraintes de bande passante ici
+        call.answer(localStream);
+
+        call.on('stream', remoteStream => {
+            if (!isProfessor) {
+                // L'étudiant voit le prof
+                remoteVideo.srcObject = remoteStream;
+            } else {
+                // Le prof crée une vignette pour chaque étudiant qui rejoint
+                ajouterVignetteEtudiant(call.peer, remoteStream);
+            }
         });
 
+        // Si l'appel coupe, on nettoie
+        call.on('close', () => {
+            const el = document.getElementById(`wrapper-${call.peer}`);
+            if (el) el.remove();
+        });
+        
+        call.on('error', err => console.error("Erreur Appel:", err));
+    });
+
+    peer.on('error', err => {
+        if (err.type === 'peer-unavailable') {
+            alert("L'ID du Professeur est introuvable. Vérifiez le code.");
+        } else if (err.type === 'network') {
+            alert("Erreur réseau : Vérifiez votre 4G/Wi-Fi.");
+        }
+        console.error("PeerJS Error Type:", err.type);
+    });
+}
+
+// Fonction de création de vignette améliorée
+function ajouterVignetteEtudiant(peerId, stream) {
+    if (document.getElementById(`video-${peerId}`)) return;
+
+    const container = document.getElementById('student-list');
+    const wrapper = document.createElement('div');
+    wrapper.id = `wrapper-${peerId}`;
+    wrapper.className = "bg-gray-800 p-2 rounded-xl border border-blue-900 mb-3 animate-pulse";
+    
+    wrapper.innerHTML = `
+        <div class="flex justify-between items-center mb-1">
+            <span class="text-[8px] font-bold text-blue-400">ID: ${peerId.substring(0,6)}</span>
+            <button onclick="agrandirVideo('${peerId}')" class="text-[8px] bg-blue-600 px-1 rounded">AGRANDIR</button>
+        </div>
+        <video id="video-${peerId}" autoplay playsinline class="w-full h-24 bg-black rounded-lg object-cover"></video>
+    `;
+    
+    container.appendChild(wrapper);
+    const videoEl = document.getElementById(`video-${peerId}`);
+    videoEl.srcObject = stream;
+    
+    // Une fois que la vidéo charge, on retire l'animation de chargement
+    videoEl.onloadedmetadata = () => wrapper.classList.remove('animate-pulse');
+}
+
+// Optionnel : Mettre l'élève en grand
+function agrandirVideo(peerId) {
+    const stream = document.getElementById(`video-${peerId}`).srcObject;
+    remoteVideo.srcObject = stream;
+}
+
+// FONCTION POUR AJOUTER LA VIDEO DE L'ELEVE CHEZ LE PROF
+function creerVignetteEtudiant(id, stream) {
+    // On vérifie si la vidéo existe déjà pour ne pas faire de doublons
+    if (document.getElementById(`video-${id}`)) return;
+
+    const container = document.getElementById('student-list');
+    const div = document.createElement('div');
+    div.id = `wrapper-${id}`;
+    div.className = "bg-gray-800 p-2 rounded-lg border border-blue-500 mb-2";
+    
+    div.innerHTML = `
+        <p class="text-[9px] mb-1 font-bold text-blue-400">ÉLÈVE : ${id.substring(0,5)}</p>
+        <video id="video-${id}" autoplay playsinline class="w-full h-32 rounded bg-black object-cover"></video>
+    `;
+    
+    container.appendChild(div);
+    document.getElementById(`video-${id}`).srcObject = stream;
+}
         // Gestion des connexions de données (chat, admin)
         peer.on('connection', conn => setupData(conn));
 

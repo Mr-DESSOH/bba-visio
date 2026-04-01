@@ -3,74 +3,178 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>BBA-VISIO ELITE v20</title>
+    <title>BBA-VISIO ELITE v21 | Premium Dashboard</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&display=swap" rel="stylesheet">
     <style>
-        #main-video-container { position: absolute; inset: 0; z-index: 10; background: #000; }
-        #local-wrapper { position: absolute; bottom: 20px; right: 20px; width: 150px; height: 110px; border: 2px solid #3b82f6; border-radius: 12px; z-index: 100; overflow: hidden; background: #000;}
-        .recording-active { animation: blink 1s infinite; background-color: #ef4444 !important; }
-        @keyframes blink { 50% { opacity: 0.6; } }
-        video { width: 100%; height: 100%; object-fit: cover; }
+        body { font-family: 'Inter', sans-serif; background-color: #050505; }
+        
+        /* Effet Glassmorphism pour les panneaux */
+        .glass-panel {
+            background: rgba(17, 24, 39, 0.7);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        /* Animation du point de statut */
+        .status-pulse {
+            box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.7);
+            animation: pulse-green 2s infinite;
+        }
+        @keyframes pulse-green {
+            70% { box-shadow: 0 0 0 10px rgba(34, 197, 94, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(34, 197, 94, 0); }
+        }
+
+        /* Vidéo locale flottante avec bordure dorée pour le Prof */
+        #local-wrapper {
+            position: absolute;
+            bottom: 24px;
+            right: 24px;
+            width: 180px;
+            height: 120px;
+            border-radius: 16px;
+            border: 2px solid #3b82f6;
+            z-index: 100;
+            overflow: hidden;
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.8);
+            transition: all 0.3s ease;
+        }
+        #local-wrapper:hover { transform: scale(1.05); border-color: #fbbf24; }
+
+        /* Zone de projection avec contrôle strict */
+        #whiteboard {
+            position: absolute;
+            inset: 0;
+            z-index: 40;
+            background: #ffffff;
+            display: none;
+            flex-direction: column;
+            animation: slideUp 0.4s ease-out;
+        }
+        @keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
+
+        /* Scrollbar élégante */
+        ::-webkit-scrollbar { width: 4px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #374151; border-radius: 10px; }
+        ::-webkit-scrollbar-thumb:hover { background: #4b5563; }
+
+        video { object-fit: cover; width: 100%; height: 100%; background: #000; }
     </style>
 </head>
-<body class="bg-black text-white min-h-screen flex flex-col overflow-hidden">
+<body class="text-gray-200 min-h-screen flex flex-col overflow-hidden">
 
-    <header class="h-16 bg-gray-900 border-b border-gray-800 flex items-center justify-between px-6 z-50">
-        <div class="flex items-center gap-4">
-            <h1 class="text-blue-500 font-black text-2xl italic">BBA-VISIO</h1>
-            <div class="border-l border-gray-700 pl-4">
-                <span id="display-name" class="text-xs font-bold block">Chargement...</span>
-                <span id="display-id" class="text-[10px] text-blue-400 font-mono italic">Initialisation...</span>
+    <header class="h-20 bg-black/80 border-b border-white/5 flex items-center justify-between px-8 z-50 backdrop-blur-md">
+        <div class="flex items-center gap-6">
+            <div class="flex flex-col">
+                <span class="text-blue-500 font-extrabold text-2xl tracking-tighter italic">BBA-VISIO</span>
+                <span class="text-[10px] text-gray-500 font-bold tracking-[0.2em] uppercase">Elite Edition</span>
+            </div>
+            
+            <div class="h-10 w-[1px] bg-white/10 mx-2"></div>
+
+            <div class="flex flex-col">
+                <div class="flex items-center gap-2">
+                    <div id="status-dot" class="w-2.5 h-2.5 rounded-full bg-gray-600"></div>
+                    <span id="display-name" class="text-sm font-semibold text-white">Utilisateur</span>
+                </div>
+                <span id="display-id" class="text-[11px] text-blue-400/80 font-mono">ID: EN ATTENTE...</span>
             </div>
         </div>
-        <div class="flex gap-2">
-            <input type="text" id="target-id" placeholder="ID Professeur..." class="bg-gray-800 border border-gray-700 rounded-lg px-3 py-1 text-xs w-40 outline-none">
-            <button onclick="rejoindreCours()" class="bg-blue-600 px-4 py-1 rounded-lg font-bold text-xs uppercase hover:bg-blue-500 transition">Rejoindre</button>
+
+        <div class="flex bg-white/5 p-1.5 rounded-2xl border border-white/10">
+            <input type="text" id="target-id" placeholder="Code de session..." 
+                class="bg-transparent px-4 py-2 text-sm w-48 outline-none placeholder:text-gray-600 font-medium">
+            <button onclick="rejoindreCours()" 
+                class="bg-blue-600 hover:bg-blue-500 text-white px-6 py-2 rounded-xl text-xs font-bold uppercase transition-all shadow-lg shadow-blue-900/40">
+                Rejoindre
+            </button>
         </div>
-        <div class="flex gap-3">
-            <button id="btn-record" onclick="toggleRecord()" class="bg-gray-700 px-3 py-1 rounded text-xs font-bold">🔴 REC</button>
-            <button id="btn-hand" onclick="leverMain()" class="bg-gray-800 px-3 py-1 rounded text-xs font-bold border border-gray-700">✋ MAIN</button>
-            <button id="btn-mic" onclick="toggleMic()" class="bg-blue-600 px-3 py-1 rounded text-xs font-bold">🎤 MICRO ON</button>
+
+        <div class="flex items-center gap-4">
+            <button id="btn-hand" onclick="leverMain()" class="p-2.5 rounded-xl bg-white/5 border border-white/10 hover:border-orange-500 transition-colors group">
+                <span class="text-lg group-hover:scale-110 inline-block transition-transform">✋</span>
+            </button>
+            <button id="btn-mic" onclick="toggleMic()" class="bg-blue-600/10 border border-blue-500/50 text-blue-400 px-4 py-2.5 rounded-xl text-xs font-bold hover:bg-blue-600 hover:text-white transition-all">
+                🎤 MICRO ON
+            </button>
+            <button id="btn-record" onclick="toggleRecord()" class="bg-red-600/10 border border-red-500/30 text-red-500 px-4 py-2.5 rounded-xl text-xs font-bold hover:bg-red-600 hover:text-white transition-all">
+                🔴 REC
+            </button>
         </div>
     </header>
 
-    <main class="flex-1 flex relative">
-        <section id="main-container" class="flex-1 relative">
-            <iframe id="ppt-frame" class="absolute inset-0 w-full h-full z-20 hidden bg-white"></iframe>
-            <div id="main-video-container">
-                <video id="remoteVideo" autoplay playsinline></video>
+    <main class="flex-1 flex relative overflow-hidden">
+        
+        <section class="flex-1 relative bg-black flex items-center justify-center">
+            
+            <div id="whiteboard">
+                <div class="h-12 bg-white border-b border-gray-200 flex items-center px-6 justify-between shadow-sm">
+                    <div class="flex items-center gap-3">
+                        <span class="w-2 h-2 rounded-full bg-orange-500 animate-pulse"></span>
+                        <span id="doc-title" class="text-xs text-gray-800 font-bold uppercase tracking-wider">Projection en direct</span>
+                    </div>
+                    <button onclick="fermerDocument()" class="text-gray-400 hover:text-red-500 font-bold transition-colors">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                    </button>
+                </div>
+                <iframe id="ppt-viewer" class="flex-1 w-full bg-white border-none"></iframe>
             </div>
+
+            <div class="w-full h-full">
+                <video id="remoteVideo" class="opacity-90"></video>
+            </div>
+
             <div id="local-wrapper">
-                <video id="localVideo" autoplay playsinline muted></video>
+                <video id="localVideo" muted></video>
             </div>
         </section>
 
-        <aside class="w-80 bg-gray-900 border-l border-gray-800 flex flex-col z-50">
-            <div id="admin-panel" class="hidden flex flex-col h-full">
-                <div class="p-4 flex justify-between items-center bg-gray-950 border-b border-gray-800">
-                    <span class="text-[10px] font-bold text-orange-500 uppercase">Gestion de Salle</span>
-                    <button id="btn-settings" onclick="modifierProfil()" class="text-sm hover:scale-110 transition">⚙️</button>
+        <aside class="w-85 bg-gray-950 border-l border-white/5 flex flex-col shadow-2xl z-50">
+            
+            <div id="admin-panel" class="hidden flex flex-col border-b border-white/5">
+                <div class="p-6">
+                    <h3 class="text-[10px] font-black text-blue-500 uppercase tracking-[0.3em] mb-4">Gestion du Cours</h3>
+                    
+                    <button onclick="document.getElementById('file-input').click()" 
+                        class="w-full bg-gradient-to-r from-blue-600 to-blue-800 py-4 rounded-2xl font-bold text-xs uppercase shadow-xl shadow-blue-900/30 hover:scale-[1.02] active:scale-95 transition-all mb-6">
+                        📤 Diffuser un Document
+                    </button>
+                    <input type="file" id="file-input" class="hidden" accept=".pdf,.doc,.docx,.ppt,.pptx" onchange="partagerDocument(this)">
+
+                    <h3 class="text-[10px] font-black text-gray-500 uppercase tracking-[0.3em] mb-4">Étudiants Actifs</h3>
+                    <div id="student-list" class="space-y-3 max-h-[300px] overflow-y-auto pr-2">
+                        </div>
                 </div>
-                <div class="p-4 bg-blue-900/10 space-y-2 border-b border-blue-500/20">
-                    <button onclick="document.getElementById('file-input').click()" class="w-full bg-orange-600 py-3 rounded-xl font-bold text-xs uppercase hover:bg-orange-500">📊 Partager Document</button>
-                    <button onclick="fermerDocument()" class="w-full bg-red-600 py-2 rounded-xl font-bold text-[10px] uppercase">✖ Fermer le doc</button>
-                    <input type="file" id="file-input" class="hidden" accept="application/pdf" onchange="partagerFichier(this)">
-                </div>
-                <div id="student-list" class="p-4 space-y-3 overflow-y-auto flex-1"></div>
             </div>
 
-            <div id="chat-ui" class="flex flex-col h-full">
-                <div id="chat-box" class="flex-1 p-4 overflow-y-auto space-y-2 text-[11px]"></div>
-                <div class="p-4 bg-gray-950 flex gap-2">
-                    <input type="text" id="chat-input" placeholder="Message..." class="flex-1 bg-gray-800 rounded px-2 py-1 text-xs outline-none">
-                    <button onclick="envoyerMessage()" class="bg-blue-600 px-3 rounded text-sm">✈️</button>
+            <div id="chat-ui" class="flex-1 flex flex-col min-h-0">
+                <div class="px-6 py-4 border-b border-white/5 bg-black/20">
+                    <span class="text-[10px] font-black text-gray-400 uppercase tracking-widest">Conversation</span>
+                </div>
+                <div id="chat-box" class="flex-1 p-6 overflow-y-auto space-y-4">
+                    </div>
+                <div class="p-6 bg-black/40">
+                    <div class="relative flex items-center">
+                        <input type="text" id="chat-input" placeholder="Dire quelque chose..." 
+                            class="w-full bg-white/5 border border-white/10 rounded-2xl px-5 py-4 text-sm outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all">
+                        <button onclick="envoyerMessage()" class="absolute right-4 text-blue-500 hover:text-blue-400 transition-colors">
+                            <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20"><path d="M10.894 2.553a1 1 0 00-1.788 0l-7 14a1 1 0 001.169 1.409l5-1.429A1 1 0 009 15.571V11a1 1 0 112 0v4.571a1 1 0 00.725.962l5 1.428a1 1 0 001.17-1.408l-7-14z"></path></svg>
+                        </button>
+                    </div>
                 </div>
             </div>
         </aside>
     </main>
 
-    <footer class="h-8 bg-gray-950 flex items-center justify-center border-t border-gray-900">
-        <button onclick="devenirProf()" class="text-[9px] text-gray-600 hover:text-blue-500 uppercase font-bold tracking-tighter transition">Accès Portail Professeur</button>
+    <footer class="h-10 bg-black border-t border-white/5 flex items-center justify-between px-8">
+        <div class="flex items-center gap-4">
+            <span class="text-[9px] text-gray-600 font-bold italic tracking-wider">PROJET BBA-VISIO &copy; 2026</span>
+            <span class="text-[9px] text-blue-900 font-black">|</span>
+            <span class="text-[9px] text-gray-500 font-bold uppercase">Développeur : Abdoulaye Issa Dessoh</span>
+        </div>
+        <button onclick="devenirProf()" class="text-[9px] text-gray-600 hover:text-blue-500 font-black tracking-widest transition-colors">MODÉRATEUR</button>
     </footer>
 
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>

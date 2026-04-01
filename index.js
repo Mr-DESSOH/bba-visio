@@ -10,27 +10,37 @@ async function init() {
     userName = prompt("Nom et Prénom :") || "Étudiant";
     document.getElementById('display-name').innerText = userName;
 
-    try {
-        localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
-        localVideo.srcObject = localStream;
+// --- GÉNÉRATION D'ID ET INITIALISATION ---
+try {
+    localStream = await navigator.mediaDevices.getUserMedia({ 
+        video: { width: 1280, height: 720 }, 
+        audio: true 
+    });
+    localVideo.srcObject = localStream;
+
+    // GÉNÉRATION D'ID RENFORCÉE (Format BBA-XXXX)
+    const suffixe = Math.random().toString(36).substring(2, 6).toUpperCase();
+    const monID = "BBA-" + suffixe;
+
+    // Création de l'instance avec l'ID personnalisé et la config blindée
+    peer = new Peer(monID, peerConfig);
+
+    // Écouteurs de base
+    setupPeerListeners();
+
+    peer.on('open', id => {
+        console.log("ID Professionnel généré : " + id);
+        document.getElementById('display-id').innerText = id;
         
-        peer = new Peer();
-        peer.on('open', id => document.getElementById('display-id').innerText = "ID: " + id);
+        // Animation du statut
+        const dot = document.getElementById('status-dot');
+        dot.classList.replace('bg-gray-600', 'bg-green-500');
+        dot.classList.add('status-pulse'); // Utilise la classe CSS qu'on a créée
+    });
 
-        peer.on('call', call => {
-            call.answer(localStream);
-            call.on('stream', stream => {
-                studentStreams[call.peer] = stream;
-                // Si l'étudiant reçoit l'appel du prof, il met le prof en grand
-                if (!isProfessor) {
-                    remoteVideo.srcObject = stream;
-                    document.getElementById('main-label').innerText = "DIRECT : PROFESSEUR";
-                }
-            });
-        });
-
-        peer.on('connection', conn => setupData(conn));
-    } catch (e) { alert("Caméra inaccessible."); }
+} catch (e) {
+    alert("Accès Caméra/Micro refusé. Vérifiez le HTTPS.");
+}catch (e) { alert("Caméra inaccessible."); }
 }
 
 function setupData(conn) {
@@ -80,16 +90,30 @@ function setupData(conn) {
 
 // POINT 1 : REJOINDRE LE PROF
 function rejoindreCours() {
-    const profId = document.getElementById('target-id').value;
-    if (!profId) return;
-    
-    const conn = peer.connect(profId);
+    const profId = document.getElementById('target-id').value.trim();
+    if (!profId) return alert("Veuillez entrer l'ID BBA-XXXX du professeur");
+
+    console.log("Tentative de poignée de main avec : " + profId);
+
+    // 1. Connexion de données (Chat/Docs)
+    const conn = peer.connect(profId, { reliable: true });
     setupData(conn);
-    
+
+    // 2. Appel Vidéo (Force le flux)
     const call = peer.call(profId, localStream);
-    call.on('stream', s => {
-        remoteVideo.srcObject = s;
-        document.getElementById('main-label').innerText = "DIRECT : PROFESSEUR";
+    
+    call.on('stream', stream => {
+        console.log("Flux vidéo reçu avec succès !");
+        remoteVideo.srcObject = stream;
+        
+        // Empêche le gel de l'image (Fix caméra qui ne bouge pas)
+        remoteVideo.onloadedmetadata = () => {
+            remoteVideo.play();
+        };
+    });
+
+    call.on('error', err => {
+        alert("Impossible de joindre ce cours. Vérifiez l'ID.");
     });
 }
 
@@ -183,6 +207,27 @@ function addChat(m, t) {
     d.innerText = m;
     chatBox.appendChild(d);
     chatBox.scrollTop = chatBox.scrollHeight;
+}
+function setupPeerListeners() {
+    peer.on('call', call => {
+        console.log("Réception d'un appel entrant...");
+        call.answer(localStream); // On répond avec notre propre caméra
+
+        call.on('stream', remoteStream => {
+            if (!isProfessor) {
+                // Si je suis l'élève, je vois le prof en grand
+                remoteVideo.srcObject = remoteStream;
+                remoteVideo.play();
+            } else {
+                // Si je suis le prof, j'ajoute l'élève dans ma liste
+                ajouterVignetteEtudiant(call.peer, remoteStream);
+            }
+        });
+    });
+
+    peer.on('error', err => {
+        console.error("Type d'erreur PeerJS :", err.type);
+    });
 }
 
 function partagerFichier(input) {

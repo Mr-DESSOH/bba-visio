@@ -84,22 +84,23 @@
         </div>
 
         <div class="flex bg-white/5 p-1.5 rounded-2xl border border-white/10">
+            <label for="target-id" class="sr-only">Code de session</label>
             <input type="text" id="target-id" placeholder="Code de session..." 
-                class="bg-transparent px-4 py-2 text-sm w-48 outline-none placeholder:text-gray-600 font-medium">
-            <button onclick="rejoindreCours()" 
+                class="bg-transparent px-4 py-2 text-sm w-48 outline-none placeholder:text-gray-600 font-medium" aria-label="Code de session">
+            <button type="button" onclick="rejoindreCours()" 
                 class="bg-blue-600 hover:bg-blue-500 text-white px-6 py-2 rounded-xl text-xs font-bold uppercase transition-all shadow-lg shadow-blue-900/40">
                 Rejoindre
             </button>
         </div>
 
         <div class="flex items-center gap-4">
-            <button id="btn-hand" onclick="leverMain()" class="p-2.5 rounded-xl bg-white/5 border border-white/10 hover:border-orange-500 transition-colors group">
+            <button type="button" id="btn-hand" onclick="leverMain()" class="p-2.5 rounded-xl bg-white/5 border border-white/10 hover:border-orange-500 transition-colors group" aria-label="Lever la main">
                 <span class="text-lg group-hover:scale-110 inline-block transition-transform">✋</span>
             </button>
-            <button id="btn-mic" onclick="toggleMic()" class="bg-blue-600/10 border border-blue-500/50 text-blue-400 px-4 py-2.5 rounded-xl text-xs font-bold hover:bg-blue-600 hover:text-white transition-all">
+            <button type="button" id="btn-mic" onclick="toggleMic()" class="bg-blue-600/10 border border-blue-500/50 text-blue-400 px-4 py-2.5 rounded-xl text-xs font-bold hover:bg-blue-600 hover:text-white transition-all">
                 🎤 MICRO ON
             </button>
-            <button id="btn-record" onclick="toggleRecord()" class="bg-red-600/10 border border-red-500/30 text-red-500 px-4 py-2.5 rounded-xl text-xs font-bold hover:bg-red-600 hover:text-white transition-all">
+            <button type="button" id="btn-record" onclick="toggleRecord()" class="bg-red-600/10 border border-red-500/30 text-red-500 px-4 py-2.5 rounded-xl text-xs font-bold hover:bg-red-600 hover:text-white transition-all">
                 🔴 REC
             </button>
         </div>
@@ -115,7 +116,7 @@
                         <span class="w-2 h-2 rounded-full bg-orange-500 animate-pulse"></span>
                         <span id="doc-title" class="text-xs text-gray-800 font-bold uppercase tracking-wider">Projection en direct</span>
                     </div>
-                    <button onclick="fermerDocument()" class="text-gray-400 hover:text-red-500 font-bold transition-colors">
+                    <button type="button" onclick="fermerDocument()" class="text-gray-400 hover:text-red-500 font-bold transition-colors" aria-label="Fermer le document">
                         <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
                     </button>
                 </div>
@@ -131,21 +132,21 @@
             </div>
         </section>
 
-        <aside class="w-85 bg-gray-950 border-l border-white/5 flex flex-col shadow-2xl z-50">
+        <aside class="w-80 bg-gray-950 border-l border-white/5 flex flex-col shadow-2xl z-50">
             
             <div id="admin-panel" class="hidden flex flex-col border-b border-white/5">
                 <div class="p-6">
                     <h3 class="text-[10px] font-black text-blue-500 uppercase tracking-[0.3em] mb-4">Gestion du Cours</h3>
                     
-                    <button onclick="document.getElementById('file-input').click()" 
-                        class="w-full bg-gradient-to-r from-blue-600 to-blue-800 py-4 rounded-2xl font-bold text-xs uppercase shadow-xl shadow-blue-900/30 hover:scale-[1.02] active:scale-95 transition-all mb-6">
+                    <button type="button" onclick="document.getElementById('file-input').click()" 
+                        class="w-full bg-gradient-to-r from-blue-600 to-blue-800 py-4 rounded-2xl font-bold text-xs uppercase shadow-xl hover:scale-[1.02] active:scale-95 transition-all mb-6" style="box-shadow: 0 20px 25px -5px rgba(30, 58, 138, 0.3);">
                         📤 Diffuser un Document
                     </button>
                     <input type="file" id="file-input" class="hidden" accept=".pdf,.doc,.docx,.ppt,.pptx" onchange="partagerDocument(this)">
 
                     <h3 class="text-[10px] font-black text-gray-500 uppercase tracking-[0.3em] mb-4">Étudiants Actifs</h3>
                     <div id="student-list" class="space-y-3 max-h-[300px] overflow-y-auto pr-2">
-                        </div>
+                    </div>
                 </div>
             </div>
 
@@ -154,12 +155,13 @@
                     <span class="text-[10px] font-black text-gray-400 uppercase tracking-widest">Conversation</span>
                 </div>
                 <div id="chat-box" class="flex-1 p-6 overflow-y-auto space-y-4">
-                    </div>
+                </div>
                 <div class="p-6 bg-black/40">
                     <div class="relative flex items-center">
+                        <label for="chat-input" class="sr-only">Message</label>
                         <input type="text" id="chat-input" placeholder="Dire quelque chose..." 
-                            class="w-full bg-white/5 border border-white/10 rounded-2xl px-5 py-4 text-sm outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all">
-                        <button onclick="envoyerMessage()" class="absolute right-4 text-blue-500 hover:text-blue-400 transition-colors">
+                            class="w-full bg-white/5 border border-white/10 rounded-2xl px-5 py-4 text-sm outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all" aria-label="Message">
+                        <button type="button" onclick="envoyerMessage()" class="absolute right-4 text-blue-500 hover:text-blue-400 transition-colors" aria-label="Envoyer le message">
                             <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20"><path d="M10.894 2.553a1 1 0 00-1.788 0l-7 14a1 1 0 001.169 1.409l5-1.429A1 1 0 009 15.571V11a1 1 0 112 0v4.571a1 1 0 00.725.962l5 1.428a1 1 0 001.17-1.408l-7-14z"></path></svg>
                         </button>
                     </div>
@@ -174,7 +176,7 @@
             <span class="text-[9px] text-blue-900 font-black">|</span>
             <span class="text-[9px] text-gray-500 font-bold uppercase">Développeur : Abdoulaye Issa Dessoh</span>
         </div>
-        <button onclick="devenirProf()" class="text-[9px] text-gray-600 hover:text-blue-500 font-black tracking-widest transition-colors">MODÉRATEUR</button>
+        <button type="button" onclick="devenirProf()" class="text-[9px] text-gray-600 hover:text-blue-500 font-black tracking-widest transition-colors">MODÉRATEUR</button>
     </footer>
 
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>

@@ -1,245 +1,407 @@
+// ============================================
+// BBA-VISIO ELITE v21 - index.js COMPLÈTE
+// ============================================
+
 const localVideo = document.getElementById('localVideo');
 const remoteVideo = document.getElementById('remoteVideo');
-const mainContainer = document.getElementById('main-container');
 const chatBox = document.getElementById('chat-box');
+const pptViewer = document.getElementById('ppt-viewer');
 
+// Variables globales
 let localStream, peer, isProfessor = false, userName = "", activeConnections = [];
 let studentStreams = {}, connectedStudents = [], windowOffset = 0;
+let handRaised = false, isRecording = false, isMicOn = true;
+let mediaRecorder = null, recordedChunks = [];
 
+// ============================================
+// CONFIGURATION PEERJS RENFORCÉE
+// ============================================
+const peerConfig = {
+    host: 'peerjs-server.herokuapp.com', // OU votre serveur custom
+    port: 443,
+    path: '/',
+    secure: true,
+    debug: 2, // 0=silent, 1=error, 2=warn, 3=all
+    config: {
+        iceServers: [
+            { urls: 'stun:stun.l.google.com:19302' },
+            { urls: 'stun:stun1.l.google.com:19302' },
+            { urls: 'stun:stun2.l.google.com:19302' },
+        ]
+    }
+};
+
+// ============================================
+// INITIALISATION
+// ============================================
 async function init() {
     userName = prompt("Nom et Prénom :") || "Étudiant";
     document.getElementById('display-name').innerText = userName;
 
-// --- GÉNÉRATION D'ID ET INITIALISATION ---
-try {
-    localStream = await navigator.mediaDevices.getUserMedia({ 
-        video: { width: 1280, height: 720 }, 
-        audio: true 
-    });
-    localVideo.srcObject = localStream;
+    try {
+        // Demander accès caméra/micro
+        localStream = await navigator.mediaDevices.getUserMedia({
+            video: {
+                width: { ideal: 1280 },
+                height: { ideal: 720 },
+                facingMode: "user"
+            },
+            audio: {
+                echoCancellation: true,
+                noiseSuppression: true,
+                autoGainControl: true
+            }
+        });
 
-    // GÉNÉRATION D'ID RENFORCÉE (Format BBA-XXXX)
-    const suffixe = Math.random().toString(36).substring(2, 6).toUpperCase();
-    const monID = "BBA-" + suffixe;
+        localVideo.srcObject = localStream;
+        localVideo.muted = true;
+        localVideo.onloadedmetadata = () => localVideo.play();
 
-    // Création de l'instance avec l'ID personnalisé et la config blindée
-    peer = new Peer(monID, peerConfig);
+        // Créer l'instance Peer
+        const suffixe = Math.random().toString(36).substring(2, 6).toUpperCase();
+        const monID = "BBA-" + suffixe;
 
-    // Écouteurs de base
-    setupPeerListeners();
+        peer = new Peer(monID, peerConfig);
 
-    peer.on('open', id => {
-        console.log("ID Professionnel généré : " + id);
-        document.getElementById('display-id').innerText = id;
-        
-        // Animation du statut
-        const dot = document.getElementById('status-dot');
-        dot.classList.replace('bg-gray-600', 'bg-green-500');
-        dot.classList.add('status-pulse'); // Utilise la classe CSS qu'on a créée
-    });
+        setupPeerListeners();
 
-} catch (e) {
-    alert("Accès Caméra/Micro refusé. Vérifiez le HTTPS.");
-}catch (e) { alert("Caméra inaccessible."); }
+        peer.on('open', (id) => {
+            console.log("✅ ID Professionnel généré : " + id);
+            document.getElementById('display-id').innerText = id;
+            
+            const dot = document.getElementById('status-dot');
+            dot.classList.remove('bg-gray-600');
+            dot.classList.add('bg-green-500', 'status-pulse');
+        });
+
+        peer.on('error', (err) => {
+            console.error("❌ Erreur PeerJS :", err);
+            alert("Erreur de connexion. Veuillez rafraîchir la page.");
+        });
+
+    } catch (error) {
+        console.error("❌ Erreur Média :", error);
+        alert("⚠️ Accès caméra/micro refusé ou indisponible. Vérifiez les permissions.");
+    }
 }
 
+// ============================================
+// GESTION DES ÉVÉNEMENTS PEER
+// ============================================
+function setupPeerListeners() {
+    // Recevoir un appel vidéo entrant
+    peer.on('call', (call) => {
+        console.log("📞 Appel entrant de : " + call.peer);
+
+        // Répondre avec notre propre flux
+        call.answer(localStream);
+
+        call.on('stream', (remoteStream) => {
+            console.log("✅ Flux vidéo reçu de : " + call.peer);
+
+            if (!isProfessor) {
+                // Étudiant : voit le prof en grand
+                remoteVideo.srcObject = remoteStream;
+                remoteVideo.onloadedmetadata = () => remoteVideo.play();
+            } else {
+                // Prof : ajoute l'étudiant à sa liste
+                studentStreams[call.peer] = remoteStream;
+                ajouterVignetteEtudiant(call.peer, remoteStream);
+            }
+        });
+
+        call.on('error', (err) => {
+            console.error("❌ Erreur appel :", err);
+        });
+
+        call.on('close', () => {
+            console.log("📞 Appel fermé avec : " + call.peer);
+            if (isProfessor) {
+                fermerFenetre(call.peer);
+                studentStreams[call.peer] = null;
+            }
+        });
+    });
+
+    // Recevoir une connexion data
+    peer.on('connection', (conn) => {
+        console.log("📡 Connexion data entrante de : " + conn.peer);
+        setupData(conn);
+    });
+}
+
+// ============================================
+// GESTION DES CONNEXIONS DATA (Chat/Commandes)
+// ============================================
 function setupData(conn) {
-    if (!activeConnections.find(c => c.peer === conn.peer)) activeConnections.push(conn);
-    conn.on('open', () => conn.send({ type: "HANDSHAKE", name: userName }));
+    // Ajouter à la liste si pas déjà là
+    if (!activeConnections.find(c => c.peer === conn.peer)) {
+        activeConnections.push(conn);
+        console.log("➕ Connexion ajoutée. Total : " + activeConnections.length);
+    }
 
-    conn.on('data', data => {
-        if (data.type === "HANDSHAKE") {
-            if (isProfessor) {
-                if (!connectedStudents.find(s => s.id === conn.peer)) {
-                    connectedStudents.push({id: conn.peer, name: data.name, hand: false});
-                }
-                renderList();
-            }
+    // Poignée de main
+    conn.on('open', () => {
+        console.log("🤝 Échange de données ouvert avec : " + conn.peer);
+        conn.send({
+            type: "HANDSHAKE",
+            name: userName,
+            isProfessor: isProfessor
+        });
+    });
+
+    // Réception de données
+    conn.on('data', (data) => {
+        handleData(data, conn);
+    });
+
+    conn.on('error', (err) => {
+        console.error("❌ Erreur data :", err);
+    });
+
+    conn.on('close', () => {
+        console.log("❌ Connexion fermée avec : " + conn.peer);
+        activeConnections = activeConnections.filter(c => c.peer !== conn.peer);
+        
+        // Si prof, retirer de la liste
+        if (isProfessor) {
+            connectedStudents = connectedStudents.filter(s => s.id !== conn.peer);
+            renderList();
         }
-        else if (data.type === "HAND_RAISE") {
-            if (isProfessor) {
-                const s = connectedStudents.find(x => x.id === data.peerId);
-                if (s) s.hand = true;
-                renderList();
-                addChat(`Système: ${data.name} veut parler.`, 'sys');
-            }
-        }
-        else if (data.type === "HAND_DOWN") {
-            if (isProfessor) {
-                const s = connectedStudents.find(x => x.id === data.peerId);
-                if (s) s.hand = false;
-                renderList();
-                fermerFenetre(data.peerId);
-            }
-        }
-        else if (data.type === "PPT_ON") {
-            document.getElementById('ppt-frame').src = data.url;
-            document.getElementById('ppt-frame').classList.remove('hidden');
-        }
-        else if (data.type === "PPT_OFF") {
-            document.getElementById('ppt-frame').classList.add('hidden');
-        }
-        else if (data.type === "CMD_MUTE") {
-            localStream.getAudioTracks()[0].enabled = false;
-            document.getElementById('btn-mic').classList.replace('bg-blue-600', 'bg-red-600');
-        }
-        else if (data.type === "CMD_KICK") location.reload();
-        else if (typeof data === "string") addChat(data, 'dist');
     });
 }
 
-// POINT 1 : REJOINDRE LE PROF
+// ============================================
+// TRAITEMENT DES MESSAGES
+// ============================================
+function handleData(data, conn) {
+    if (typeof data === 'object') {
+        switch (data.type) {
+            case "HANDSHAKE":
+                if (isProfessor) {
+                    if (!connectedStudents.find(s => s.id === conn.peer)) {
+                        connectedStudents.push({
+                            id: conn.peer,
+                            name: data.name,
+                            hand: false
+                        });
+                        renderList();
+                        addChat(`Système: ${data.name} a rejoint le cours.`, 'sys');
+                        console.log("👥 Étudiant ajouté : " + data.name);
+                    }
+                }
+                break;
+
+            case "HAND_RAISE":
+                if (isProfessor) {
+                    const student = connectedStudents.find(s => s.id === data.peerId);
+                    if (student) {
+                        student.hand = true;
+                        renderList();
+                        addChat(`🖐️ ${data.name} veut parler.`, 'sys');
+                        playSound('notification');
+                    }
+                }
+                break;
+
+            case "HAND_DOWN":
+                if (isProfessor) {
+                    const student = connectedStudents.find(s => s.id === data.peerId);
+                    if (student) {
+                        student.hand = false;
+                        renderList();
+                        fermerFenetre(data.peerId);
+                    }
+                }
+                break;
+
+            case "PPT_ON":
+                document.getElementById('whiteboard').style.display = 'flex';
+                pptViewer.src = data.url;
+                document.getElementById('doc-title').innerText = data.filename || "Document partagé";
+                addChat("📄 Un document a été partagé.", 'sys');
+                break;
+
+            case "PPT_OFF":
+                document.getElementById('whiteboard').style.display = 'none';
+                pptViewer.src = '';
+                addChat("📄 Partage de document fermé.", 'sys');
+                break;
+
+            case "CMD_MUTE":
+                localStream.getAudioTracks()[0].enabled = false;
+                isMicOn = false;
+                document.getElementById('btn-mic').classList.remove('bg-blue-600/10', 'border-blue-500/50');
+                document.getElementById('btn-mic').classList.add('bg-red-600/10', 'border-red-500/50');
+                document.getElementById('btn-mic').innerText = '🔇 MICRO OFF';
+                addChat("⚠️ Votre micro a été désactivé par le professeur.", 'sys');
+                break;
+
+            case "CMD_KICK":
+                addChat("❌ Vous avez été expulsé par le professeur.", 'sys');
+                setTimeout(() => location.reload(), 2000);
+                break;
+
+            case "MSG":
+                addChat(`${data.sender}: ${data.text}`, 'dist');
+                break;
+
+            default:
+                console.warn("Type de message inconnu :", data.type);
+        }
+    } else if (typeof data === "string") {
+        // Message chat simple (ancien format)
+        addChat(data, 'dist');
+    }
+}
+
+// ============================================
+// POINT 1 : REJOINDRE LE PROF (ÉTUDIANT)
+// ============================================
 function rejoindreCours() {
     const profId = document.getElementById('target-id').value.trim();
-    if (!profId) return alert("Veuillez entrer l'ID BBA-XXXX du professeur");
+    if (!profId) {
+        alert("❌ Veuillez entrer l'ID BBA-XXXX du professeur");
+        return;
+    }
 
-    console.log("Tentative de poignée de main avec : " + profId);
+    console.log("📞 Tentative de connexion au professeur : " + profId);
 
-    // 1. Connexion de données (Chat/Docs)
+    // 1. Connexion data (Chat/Contrôle)
     const conn = peer.connect(profId, { reliable: true });
     setupData(conn);
 
-    // 2. Appel Vidéo (Force le flux)
+    // 2. Appel vidéo
     const call = peer.call(profId, localStream);
-    
-    call.on('stream', stream => {
-        console.log("Flux vidéo reçu avec succès !");
-        remoteVideo.srcObject = stream;
-        
-        // Empêche le gel de l'image (Fix caméra qui ne bouge pas)
-        remoteVideo.onloadedmetadata = () => {
-            remoteVideo.play();
-        };
+
+    call.on('stream', (remoteStream) => {
+        console.log("✅ Flux vidéo du professeur reçu !");
+        remoteVideo.srcObject = remoteStream;
+        remoteVideo.onloadedmetadata = () => remoteVideo.play();
     });
 
-    call.on('error', err => {
-        alert("Impossible de joindre ce cours. Vérifiez l'ID.");
+    call.on('error', (err) => {
+        console.error("❌ Erreur appel :", err);
+        alert("❌ Impossible de joindre ce cours. Vérifiez l'ID et réessayez.");
     });
 }
 
+// ============================================
 // POINT 2 : MULTI-FENÊTRES EN CASCADE (PROF)
+// ============================================
 function accepterEtudiant(id, name) {
-    if (!studentStreams[id] || document.getElementById(`win-${id}`)) return;
+    if (!studentStreams[id]) {
+        console.warn("❌ Pas de flux vidéo pour : " + id);
+        return;
+    }
+
+    if (document.getElementById(`win-${id}`)) {
+        console.log("⚠️ Fenêtre déjà ouverte pour : " + name);
+        return;
+    }
 
     const win = document.createElement('div');
     win.id = `win-${id}`;
-    win.className = "student-window";
-    
-    // Calcul de la cascade
+    win.className = "fixed bg-orange-600 rounded-2xl shadow-2xl border-2 border-orange-500 overflow-hidden p-1 min-w-[250px] min-h-[200px]";
+    win.style.zIndex = 200 + connectedStudents.length;
     win.style.top = (50 + windowOffset) + "px";
     win.style.left = (50 + windowOffset) + "px";
     windowOffset = (windowOffset + 40) % 200;
 
     win.innerHTML = `
-        <div class="bg-orange-600 px-3 py-1 flex justify-between items-center cursor-move">
-            <span class="text-[10px] font-black uppercase text-white">${name}</span>
-            <button onclick="fermerFenetre('${id}')" class="text-white font-bold hover:scale-125 transition">✕</button>
+        <div class="bg-orange-600 px-4 py-2 flex justify-between items-center cursor-move select-none rounded-t-lg drag-handle">
+            <span class="text-xs font-black uppercase text-white">📹 ${name}</span>
+            <button type="button" onclick="fermerFenetre('${id}')" class="text-white font-bold hover:scale-125 transition text-lg" aria-label="Fermer">✕</button>
         </div>
-        <video id="vid-${id}" autoplay playsinline class="bg-black"></video>
+        <video id="vid-${id}" autoplay playsinline class="w-full h-full bg-black rounded-b-lg object-cover"></video>
     `;
 
-    mainContainer.appendChild(win);
-    document.getElementById(`vid-${id}`).srcObject = studentStreams[id];
+    document.body.appendChild(win);
+
+    const video = document.getElementById(`vid-${id}`);
+    video.srcObject = studentStreams[id];
+    video.onloadedmetadata = () => video.play();
+
+    // Drag & drop (drag simple)
+    makeDraggable(win);
+
+    console.log("📺 Fenêtre ouverte pour : " + name);
 }
 
+// ============================================
+// FERMER UNE FENÊTRE D'ÉTUDIANT
+// ============================================
 function fermerFenetre(id) {
     const el = document.getElementById(`win-${id}`);
-    if (el) el.remove();
-}
-
-function renderList() {
-    const list = document.getElementById('student-list');
-    list.innerHTML = "";
-    connectedStudents.forEach(s => {
-        list.innerHTML += `
-            <div class="bg-gray-800 p-3 rounded-xl border-l-4 ${s.hand ? 'border-orange-500' : 'border-blue-500'}">
-                <div class="flex justify-between items-center mb-2">
-                    <span class="text-xs font-bold text-white">${s.name}</span>
-                    ${s.hand ? '<span class="text-orange-500 text-[10px] font-black animate-pulse">MAIN LEVÉE</span>' : ''}
-                </div>
-                <div class="flex flex-col gap-2">
-                    ${s.hand ? `<button onclick="accepterEtudiant('${s.id}', '${s.name}')" class="bg-green-600 py-1.5 rounded text-[10px] font-bold">Ouvrir Vidéo</button>` : ''}
-                    <div class="flex gap-1">
-                        <button onclick="adminAction('${s.id}', 'CMD_MUTE')" class="flex-1 bg-gray-700 py-1 rounded text-[9px] hover:bg-orange-700">MUTE</button>
-                        <button onclick="adminAction('${s.id}', 'CMD_KICK')" class="flex-1 bg-gray-700 py-1 rounded text-[9px] hover:bg-red-700">KICK</button>
-                    </div>
-                </div>
-            </div>`;
-    });
-}
-
-// LOGIQUE PROF
-function devenirProf() {
-    if (prompt("Code :") === "BBA2026") {
-        isProfessor = true;
-        document.getElementById('admin-panel').classList.remove('hidden');
-        document.getElementById('chat-ui').classList.add('hidden');
-        // Le prof se voit lui-même en grand
-        remoteVideo.srcObject = localStream;
-        document.getElementById('main-label').innerText = "VOTRE DIFFUSION (PROFESSEUR)";
-        document.getElementById('local-wrapper').style.display = "none";
+    if (el) {
+        el.style.animation = "slideDown 0.3s ease-in";
+        setTimeout(() => el.remove(), 300);
+        console.log("❌ Fenêtre fermée pour : " + id);
     }
 }
 
-// FONCTIONNALITÉS DE BASE
-function adminAction(id, type) {
-    const conn = activeConnections.find(c => c.peer === id);
-    if (conn) conn.send({ type });
+// ============================================
+// AJOUTER VIGNETTE ÉTUDIANT (PROF)
+// ============================================
+function ajouterVignetteEtudiant(peerId, stream) {
+    // La vignette est ajoutée à la liste des étudiants
+    const student = connectedStudents.find(s => s.id === peerId);
+    if (student) {
+        console.log("✅ Vignette ajoutée pour : " + student.name);
+    }
 }
 
-function leverMain() {
-    handRaised = !handRaised;
-    document.getElementById('btn-hand').classList.toggle('bg-orange-600', handRaised);
-    activeConnections.forEach(c => c.send({ type: handRaised ? "HAND_RAISE" : "HAND_DOWN", name: userName, peerId: peer.id }));
-}
+// ============================================
+// AFFICHER LA LISTE DES ÉTUDIANTS (PROF)
+// ============================================
+function renderList() {
+    const list = document.getElementById('student-list');
+    if (!list) return;
 
-function envoyerMessage() {
-    const i = document.getElementById('chat-input');
-    if (!i.value) return;
-    activeConnections.forEach(c => c.send(`${userName}: ${i.value}`));
-    addChat(i.value, 'moi');
-    i.value = "";
-}
-
-function addChat(m, t) {
-    const d = document.createElement('div');
-    d.className = t === 'moi' ? "bg-blue-600 ml-auto p-2 rounded-lg max-w-[80%]" : (t === 'sys' ? "text-orange-400 text-center text-[9px]" : "bg-gray-800 p-2 rounded-lg max-w-[80%]");
-    d.innerText = m;
-    chatBox.appendChild(d);
-    chatBox.scrollTop = chatBox.scrollHeight;
-}
-function setupPeerListeners() {
-    peer.on('call', call => {
-        console.log("Réception d'un appel entrant...");
-        call.answer(localStream); // On répond avec notre propre caméra
-
-        call.on('stream', remoteStream => {
-            if (!isProfessor) {
-                // Si je suis l'élève, je vois le prof en grand
-                remoteVideo.srcObject = remoteStream;
-                remoteVideo.play();
-            } else {
-                // Si je suis le prof, j'ajoute l'élève dans ma liste
-                ajouterVignetteEtudiant(call.peer, remoteStream);
-            }
-        });
+    list.innerHTML = "";
+    connectedStudents.forEach(s => {
+        const isHandRaised = s.hand ? 'border-orange-500 bg-orange-600/10' : 'border-blue-500 bg-blue-600/10';
+        list.innerHTML += `
+            <div class="${isHandRaised} p-3 rounded-xl border-l-4 transition-all mb-2">
+                <div class="flex justify-between items-center mb-2">
+                    <span class="text-xs font-bold text-white truncate">${s.name}</span>
+                    ${s.hand ? '<span class="text-orange-400 text-[9px] font-black animate-pulse">🖐️ MAIN LEVÉE</span>' : ''}
+                </div>
+                <div class="flex flex-col gap-2">
+                    ${s.hand ? `
+                        <button type="button" onclick="accepterEtudiant('${s.id}', '${s.name.replace(/'/g, "\\'")}')" 
+                            class="w-full bg-green-600 hover:bg-green-500 py-1.5 rounded text-[10px] font-bold transition-colors">
+                            📹 Ouvrir Vidéo
+                        </button>
+                    ` : ''}
+                    <div class="flex gap-1">
+                        <button type="button" onclick="adminAction('${s.id}', 'CMD_MUTE')" 
+                            class="flex-1 bg-gray-700 hover:bg-orange-700 py-1 rounded text-[9px] font-bold transition-colors">
+                            🔇 MUTE
+                        </button>
+                        <button type="button" onclick="adminAction('${s.id}', 'CMD_KICK')" 
+                            class="flex-1 bg-gray-700 hover:bg-red-700 py-1 rounded text-[9px] font-bold transition-colors">
+                            ❌ KICK
+                        </button>
+                    </div>
+                </div>
+            </div>
+        `;
     });
-
-    peer.on('error', err => {
-        console.error("Type d'erreur PeerJS :", err.type);
-    });
 }
 
-function partagerFichier(input) {
-    const file = input.files[0];
-    const reader = new FileReader();
-    reader.onload = (e) => {
-        const data = { type: "PPT_ON", url: e.target.result };
-        document.getElementById('ppt-frame').src = data.url;
-        document.getElementById('ppt-frame').classList.remove('hidden');
-        activeConnections.forEach(c => c.send(data));
-    };
-    reader.readAsDataURL(file);
-}
+// ============================================
+// DEVENIR PROFESSEUR
+// ============================================
+function devenirProf() {
+    const code = prompt("🔐 Code professeur :");
+    if (code === "BBA2026") {
+        isProfessor = true;
+        console.log("✅ Mode professeur activé !");
 
-init();
+        document.getElementById('admin-panel').classList.remove('hidden');
+        document.getElementById('chat-ui').classList.add('hidden');
+
+        // Afficher la propre vidéo du prof
+        remoteVideo.srcObject = localStream;
+        remoteVideo.play
